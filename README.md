@@ -10,5 +10,4 @@ To build:
 	./configure
 	make
 
-To cleanup working dir:
 	git clean -f -d 
