@@ -1,6 +1,9 @@
 /**
  * Copyright 2015 J. Rick Ramstetter
  * rick.ramstetter[at]gmail.[tld]
+ *
+ * Problem statement:
+ *  https://www.hackerrank.com/challenges/the-grid-search
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
