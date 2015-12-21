@@ -22,18 +22,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/*
-Node is defined as 
-
-typedef struct node
-{
-   int data;
-   node * left;
-   node * right;
-}node;
-
-*/
-
 #include <stack>
 
 void pathToNode(std::stack<node *> &path, node *root, const int value) {
