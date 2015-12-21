@@ -4,7 +4,8 @@ SUBDIRS = \
   the-grid-search \
   swap-nodes-algo/using-tree-data-structure \
   swap-nodes-algo/using-vector-tree \
-  diagonal-difference 
+  diagonal-difference \
+  maximizing-xor
  
 AM_CXXFLAGS = 
 AM_CFLAGS = 
