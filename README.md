@@ -11,4 +11,4 @@ To build:
 	make
 
 To cleanup working dir:
-	git clean -f -d
+	git clean -f -d 
