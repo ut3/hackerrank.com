@@ -4,6 +4,7 @@ Solutions for problems on hackerrank.com, manually copy/pasted into a big automa
 All authored by J. Rick Ramstetter
 
 To build:
+
 	git clone https://github.com/ut3/hackerrack.com/
 	cd hackerrank.com
 	autoreconf --install
@@ -11,4 +12,5 @@ To build:
 	make
 
 To clean:
+
 	git clean -f -d 
