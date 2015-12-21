@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2015 J. Rick Ramstetter
  * rick.ramstetter[at]gmail.[tld]
  *

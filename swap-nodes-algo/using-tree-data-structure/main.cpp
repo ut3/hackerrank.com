@@ -1,8 +1,8 @@
-/**
+/*
  * Copyright 2015 J. Rick Ramstetter
  * rick.ramstetter[at]gmail.[tld]
  * 
- * Problem:
+ * Problem statement:
  *  https://www.hackerrank.com/challenges/swap-nodes-algo
  * 
  * This program is free software: you can redistribute it and/or modify
