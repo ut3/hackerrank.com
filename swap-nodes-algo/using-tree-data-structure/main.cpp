@@ -21,6 +21,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 
 #include <assert.h>
 
