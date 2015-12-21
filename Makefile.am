@@ -3,7 +3,8 @@ SUBDIRS = \
   dijkstrashortreach \
   the-grid-search \
   swap-nodes-algo/using-tree-data-structure \
-  swap-nodes-algo/using-vector-tree
+  swap-nodes-algo/using-vector-tree \
+  diagonal-difference 
  
 AM_CXXFLAGS = 
 AM_CFLAGS = 
