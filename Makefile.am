@@ -7,7 +7,8 @@ SUBDIRS = \
   diagonal-difference \
   maximizing-xor \
   time-conversion \
-  plus-minus
+  plus-minus \
+  sherlock-and-array 
  
 AM_CXXFLAGS = 
 AM_CFLAGS = 
