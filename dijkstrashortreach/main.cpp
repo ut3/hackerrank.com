@@ -55,9 +55,10 @@
  * The total allocation size is calculated from the arithmetic sum:
  *   ∑i from 1 to N = N(N+1)/2
  */
+template <typename W>
 class AdjacencyMatrix {
     public:
-        typedef uint32_t Weight; // edge weight type
+        typedef W Weight; // edge weight type
 
         AdjacencyMatrix(const size_t nodes, const size_t edges) :
             m_nodes(nodes), /* Actual number of nodes */
@@ -114,7 +115,12 @@ class AdjacencyMatrix {
                 return;
             }
 
-            // Duplicate edge?
+
+            /* 
+             * If a duplicate edge exists, discard the higher-cost edge.
+             * This will cause trouble if the AdjacencyMatrix is ever used as
+             * part of a cost-maximization algorithm. 
+             */
             Weight oldweight = GetEdge(A, B);
             if (oldweight < weight)
                 return;
@@ -142,7 +148,7 @@ class AdjacencyMatrix {
 
             /* When i is less than the search node, use i as the row index */
             for (size_t i = 0; i < node; ++i) {
-                Weight weight = m_matrix[node - 1][i];
+                Weight weight = m_matrix[node - 1 /* 0-indexed */][i];
                 if (weight != std::numeric_limits<Weight>::max()) {
                     neighbors.insert(std::make_pair(i + 1 /* 1-indexed */, weight));
                 }
@@ -150,7 +156,7 @@ class AdjacencyMatrix {
 
             /* When i is greater than or equal to the search node, use i as the col index */
             for (size_t i = node; i < m_nodes; ++i) {
-                Weight weight = m_matrix[i][node - 1];
+                Weight weight = m_matrix[i][node - 1 /* 0-indexed */];
                 if (weight != std::numeric_limits<Weight>::max()) {
                     neighbors.insert(std::make_pair(i + 1 /* 1-indexed */, weight));
                 }
@@ -158,13 +164,13 @@ class AdjacencyMatrix {
 
         }
 
-        void PrintGraph() {
+        void Print() {
             for (size_t x = 1; x <= m_nodes; ++x) {
                 std::cerr << x << ": ";
                 for (size_t y = 1; y <= x; ++y) {
                     Weight val = m_matrix[x - 1][y - 1];
                     if (val == std::numeric_limits<Weight>::max())
-                        std::cerr << y << "=-1 ";
+                        std::cerr << y << "=M ";
                     else
                         std::cerr << y << "=" << val << " ";
                 }
@@ -176,27 +182,42 @@ class AdjacencyMatrix {
         const size_t m_nodes;
         const size_t m_edges;
 
-        /* This is zero-indexed, but most public methods are 1-indexed */
+        /* This is 0-indexed, but most public methods are 1-indexed */
         Weight **m_matrix;
 };
 
 
 
+template <typename MatrixT>
 class DijkstraGraph {
     public:
-        typedef AdjacencyMatrix::Weight Weight;
+        typedef typename MatrixT::Weight Weight;
 
-        DijkstraGraph(const size_t start, const AdjacencyMatrix &matrix) :
-            m_start(start), m_matrix(matrix), m_distances(NULL) { }
+        /* start is 1-indexed, internal data structures are 0-indexed */
+        DijkstraGraph(const size_t start, const MatrixT &matrix) :
+            m_start(start), 
+            m_matrix(matrix), 
+            m_distances(NULL) 
+            { 
+                assert( start - 1 >= 0 ); 
+                assert( start <= m_matrix.NodeCount() );
+            }
 
         ~DijkstraGraph() {
             free(m_distances);
+            free(m_previous);
             m_distances = NULL;
+            m_previous = NULL;
         }
 
         int Setup() {
             if (m_distances)
                 return -1;
+
+
+            /* 
+             * 1. Allocate space for the 0-indexed list of weights from start
+             */
 
             const size_t alloc_size = sizeof(Weight) * m_matrix.NodeCount();
 
@@ -206,12 +227,38 @@ class DijkstraGraph {
                 return -1;
             }
 
-            for (size_t i = 0; i < m_matrix.NodeCount(); ++i)
-                m_distances[i] = -1;
 
-            m_distances[m_start - 1] = 0; /* Distance to self is 0 */
+
+            /*
+             * 2. Allocate space for the 0-indexed list of prior nodes on
+             *    the optimal path from start 
+             */ 
+
+            m_previous = (size_t *) malloc(sizeof(size_t) * m_matrix.NodeCount());
+            if (!m_previous) {
+                std::cerr << "-ENOMEM" << std::endl;
+                return -1;
+            }
+
+            /* 3. Initialize */
+
+            for (size_t i = 0; i < m_matrix.NodeCount(); ++i) {
+                m_distances[i] = std::numeric_limits<Weight>::max();
+                m_previous[i]  = std::numeric_limits<size_t>::max(); 
+            }
+
+            /* Distance to self from self is 0 */
+            m_distances[m_start - 1] = 0;
+
+            /* Previous node from start to start is start, but with indexing issues */
+            m_previous[m_start - 1] = m_start; 
 
             return 0;
+        }
+
+        int ComputeNew() {
+            
+
         }
 
         int Compute() {
@@ -227,7 +274,7 @@ class DijkstraGraph {
                 std::map<size_t, Weight> neighbors;
                 m_matrix.GetNeighbors(c_node, neighbors);
 
-                std::map<size_t, Weight>::const_iterator iter = neighbors.begin();
+                auto iter = neighbors.begin();
                 for (; iter != neighbors.end(); ++iter) {
                     const size_t n_node         = iter->first;
                     /* distance to the neighbor node by going through C */
@@ -265,12 +312,16 @@ class DijkstraGraph {
 
 
     private:
+        /* 1-indexed start node */
         size_t m_start;
 
-        const AdjacencyMatrix &m_matrix;
+        const MatrixT &m_matrix;
 
-        /* m_distances[R][C] constraint: R <= C (swap them if not) */
+        /* 0-indexed list of distances from the start node */
         Weight *m_distances;
+
+        /* 0-indexed list of prior nodes on the optimal path from start */
+        size_t *m_previous;
 };
 
 
@@ -281,7 +332,8 @@ int handle_test_case(size_t test_num) {
     std::cin >> nodes;
     std::cin >> edges;
 
-    AdjacencyMatrix matrix(nodes, edges);
+    typedef AdjacencyMatrix<uint32_t> MatrixT;
+    MatrixT matrix(nodes, edges);
     if (matrix.Setup()) {
         std::cerr << "Matrix setup failed; aborting test case " << test_num << std::endl;
         return -1;
@@ -289,7 +341,7 @@ int handle_test_case(size_t test_num) {
 
     for (size_t i = 0; i < edges; ++i) {
         size_t A, B;
-        AdjacencyMatrix::Weight weight;
+        MatrixT::Weight weight;
 
         std::cin >> A;
         std::cin >> B;
@@ -300,12 +352,12 @@ int handle_test_case(size_t test_num) {
         matrix.SetEdge(A, B, weight);
     }
 
-    matrix.PrintGraph();
+    //matrix.Print();
 
     size_t start;
     std::cin >> start;
 
-    DijkstraGraph dijkstra(start, matrix);
+    DijkstraGraph<MatrixT> dijkstra(start, matrix);
     if (dijkstra.Setup()) {
         std::cerr << "Dijkstra setup() failed; aborting test case " << test_num << std::endl;
         return -1;
