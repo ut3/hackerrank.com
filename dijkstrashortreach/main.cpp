@@ -63,11 +63,10 @@ class AdjacencyMatrix {
         AdjacencyMatrix(const size_t nodes, const size_t edges) :
             m_nodes(nodes), /* Actual number of nodes */
             m_edges(edges), /* Actual number f edges */
-            m_matrix(NULL)
-    {
-        /* Mathematical max number of edges */
-        assert(edges <= nodes * (nodes + 1) / 2 );
-    }
+            m_matrix(NULL) {
+                /* Mathematical max number of edges */
+                assert(edges <= nodes * (nodes + 1) / 2 );
+            }
 
         ~AdjacencyMatrix() {
             free(m_matrix);
@@ -114,7 +113,6 @@ class AdjacencyMatrix {
                 std::cerr << "BAD IDX :: " << UA << ", " << UB << std::endl;
                 return;
             }
-
 
             /* 
              * If a duplicate edge exists, discard the higher-cost edge.
@@ -165,6 +163,7 @@ class AdjacencyMatrix {
         }
 
         void Print() {
+            std::cerr << "Matrix dump follows: " << std::endl;
             for (size_t x = 1; x <= m_nodes; ++x) {
                 std::cerr << x << ": ";
                 for (size_t y = 1; y <= x; ++y) {
@@ -197,8 +196,7 @@ class DijkstraGraph {
         DijkstraGraph(const size_t start, const MatrixT &matrix) :
             m_start(start), 
             m_matrix(matrix), 
-            m_distances(NULL) 
-            { 
+            m_distances(NULL) { 
                 assert( start - 1 >= 0 ); 
                 assert( start <= m_matrix.NodeCount() );
             }
@@ -256,38 +254,36 @@ class DijkstraGraph {
             return 0;
         }
 
-        int ComputeNew() {
-            
-
-        }
-
         int Compute() {
             std::map<size_t, Weight> unvisited;
-            unvisited.insert(std::make_pair(m_start, 0));
+            unvisited.insert(std::make_pair(m_start /* 1-idx */, 0));
 
             while (!unvisited.empty()) {
+
+                /* Current node 1-index */
+                const size_t c_node = unvisited.begin()->first;
+
                 /* Known & firm min distance to the current node */
                 const Weight c_dist = unvisited.begin()->second;
-                const size_t c_node = unvisited.begin()->first;
+
                 unvisited.erase(unvisited.begin());
 
                 std::map<size_t, Weight> neighbors;
-                m_matrix.GetNeighbors(c_node, neighbors);
+                m_matrix.GetNeighbors(c_node /* 1-idx */, neighbors);
 
-                auto iter = neighbors.begin();
-                for (; iter != neighbors.end(); ++iter) {
-                    const size_t n_node         = iter->first;
+                for (auto &neighbor : neighbors) { 
+                    const size_t &n_node = neighbor.first;
+
                     /* distance to the neighbor node by going through C */
-                    const Weight n_distThroughC = c_dist + iter->second;
+                    const Weight n_distThroughC = c_dist + neighbor.second;
 
-                    if (m_distances[n_node - 1] == -1 ||
-                            n_distThroughC < m_distances[n_node - 1])
-                    {
-                        m_distances[n_node - 1] = n_distThroughC;
+                    if (n_distThroughC < m_distances[n_node - 1 /* 0-idx */]) {
+                        m_distances[n_node - 1 /* 0-idx */] = n_distThroughC;
+
+                        m_previous[n_node - 1 /* 0-idx */] = c_node;
 
                         /* Have to update unvisited queue with new info */
-                        unvisited.erase(n_node);
-                        unvisited[n_node] = m_distances[n_node - 1];
+                        unvisited[n_node] = n_distThroughC; 
                     }
 
                 }
@@ -304,7 +300,10 @@ class DijkstraGraph {
                 if (i == m_start - 1)
                     continue;
 
-                std::cout << m_distances[i] << " ";
+                if (m_distances[i] == std::numeric_limits<Weight>::max())
+                    std::cout << "-1 ";
+                else
+                    std::cout << m_distances[i] << " ";
             }
 
             std::cout << std::endl;
@@ -347,7 +346,7 @@ int handle_test_case(size_t test_num) {
         std::cin >> B;
         std::cin >> weight;
 
-        // std::cerr << "SetEdge " << A << " " << B << " " << weight << std::endl;
+        //std::cerr << "SetEdge " << A << " " << B << " " << weight << std::endl;
 
         matrix.SetEdge(A, B, weight);
     }
