@@ -25,12 +25,13 @@
 #include <stdint.h>
 #include <assert.h>
 
-#include <map>
-#include <list>
+#include <vector>
 #include <limits>
 #include <iostream>
+#include <utility>
+#include <queue>
 #include <set>
-#include <vector>
+#include <map>
 
 /**
  * The adjacency matrix is space-optimized for bidirectional graphs.
@@ -63,16 +64,8 @@ class AdjacencyMatrix {
             m_nodes(nodes), /* Actual number of nodes */
             m_edges(edges), /* Actual number f edges */
             m_matrix(NULL) {
-                /** 
-                 * Mathematical max number of edges.  
-                 * Graph input (edges and nodes) not sane if this fails.
-                 */
-                if (edges > nodes * (nodes + 1) / 2) {
-                    std::cerr << "Graph input not sane, mismatch between "
-                              << "edge (" << edges <<") and node (" 
-                              << nodes << ") counts." << std::endl;
-                    exit(EXIT_FAILURE);
-                }
+                /* Mathematical max number of edges */
+                assert(edges <= nodes * (nodes + 1) / 2 );
             }
 
         ~AdjacencyMatrix() {
@@ -149,19 +142,13 @@ class AdjacencyMatrix {
 
 
         /* "node" param is 1-indexed */
-        template <typename T>
-        void GetNeighbors(const size_t node, T &neighbors) const {
-
-            if (node > m_nodes) {
-                std::cerr << "Node " << node << " out of bounds, max is " << m_nodes << std::endl;
-                return;
-            }
+        void GetNeighbors(const size_t node, std::map<size_t, Weight> &neighbors) const {
 
             /* When i is less than the search node, use i as the row index */
             for (size_t i = 0; i < node; ++i) {
                 Weight weight = m_matrix[node - 1 /* 0-indexed */][i];
                 if (weight != std::numeric_limits<Weight>::max()) {
-                    neighbors.insert(neighbors.end(), std::make_pair(i + 1 /* 1-indexed */, weight));
+                    neighbors.insert(std::make_pair(i + 1 /* 1-indexed */, weight));
                 }
             }
 
@@ -169,9 +156,10 @@ class AdjacencyMatrix {
             for (size_t i = node; i < m_nodes; ++i) {
                 Weight weight = m_matrix[i][node - 1 /* 0-indexed */];
                 if (weight != std::numeric_limits<Weight>::max()) {
-                    neighbors.insert(neighbors.end(), std::make_pair(i + 1 /* 1-indexed */, weight));
+                    neighbors.insert(std::make_pair(i + 1 /* 1-indexed */, weight));
                 }
             }
+
         }
 
         void Print() {
@@ -208,30 +196,22 @@ class DijkstraGraph {
         DijkstraGraph(const size_t start, const MatrixT &matrix) :
             m_start(start), 
             m_matrix(matrix), 
-            m_distances(NULL) { 
-
-                /**
-                 * Bounds checking on the start node.
-                 * Input start node is not sane if this fails.
-                 */
-                if (start > m_matrix.NodeCount()) { 
-                    std::cerr << "Start node " << start 
-                              << " exceeds maximum node count " 
-                              << m_matrix.NodeCount() << std::endl;
-                    exit(EXIT_FAILURE);
-                }
+            m_cost(NULL) { 
+                assert( start - 1 >= 0 ); 
+                assert( start <= m_matrix.NodeCount() );
             }
 
         ~DijkstraGraph() {
-            free(m_distances);
-            free(m_previous);
-            m_distances = NULL;
-            m_previous = NULL;
+            free(m_cost);
+            free(m_edges);
+            m_cost = NULL;
+            m_edges = NULL;
         }
 
         int Setup() {
-            if (m_distances)
+            if (m_cost)
                 return -1;
+
 
             /* 
              * 1. Allocate space for the 0-indexed list of weights from start
@@ -239,8 +219,8 @@ class DijkstraGraph {
 
             const size_t alloc_size = sizeof(Weight) * m_matrix.NodeCount();
 
-            m_distances = (Weight *) malloc(alloc_size);
-            if (!m_distances) {
+            m_cost = (Weight *) malloc(alloc_size);
+            if (!m_cost) {
                 std::cerr << "-ENOMEM" << std::endl;
                 return -1;
             }
@@ -252,8 +232,8 @@ class DijkstraGraph {
              *    the optimal path from start 
              */ 
 
-            m_previous = (size_t *) malloc(sizeof(size_t) * m_matrix.NodeCount());
-            if (!m_previous) {
+            m_edges = (size_t *) malloc(sizeof(size_t) * m_matrix.NodeCount());
+            if (!m_edges) {
                 std::cerr << "-ENOMEM" << std::endl;
                 return -1;
             }
@@ -261,126 +241,72 @@ class DijkstraGraph {
             /* 3. Initialize */
 
             for (size_t i = 0; i < m_matrix.NodeCount(); ++i) {
-                m_distances[i] = std::numeric_limits<Weight>::max();
-                m_previous[i]  = std::numeric_limits<size_t>::max(); 
+                m_cost[i] = std::numeric_limits<Weight>::max();
+                m_edges[i]  = std::numeric_limits<size_t>::max(); 
             }
 
             /* Distance to self from self is 0 */
-            m_distances[m_start - 1] = 0;
+            m_cost[m_start - 1] = 0;
 
             /* Previous node from start to start is start, but with indexing issues */
-            m_previous[m_start - 1] = m_start; 
+            m_edges[m_start - 1] = m_start; 
 
             return 0;
         }
 
-
         int Compute() {
-            /**
-             * Mapping 1-idx node number to node's Weight 
-             */ 
-            typedef std::pair<size_t, Weight> PairT;
+            /* map from <node number 1-idx> to Weight */
+            std::map<size_t, Weight> unvisited;
 
-            /** 
-             * A comparison functor which gives precedence to the second
-             * entry of PairT, the Weight. Allows the "unvisited" set to
-             * sort based on Weigh.
-             */ 
-            struct comparator{
-                bool operator() (const PairT &lhs, const PairT &rhs) {
-                    if (lhs.second == rhs.second)
-                        return lhs.first < rhs.first;
+            unvisited.insert(std::make_pair(m_start /* 1-idx */, 0));
 
-                    return lhs.second <= rhs.second;
-                }
-            } theComparator;
+            while (!unvisited.empty()) {
 
-            /** 
-             * Nodes which must be traversed. "theComparator" causes
-             * this to be sorted by elements' Weight, returning
-             * the lowest weight element for .begin()
-             */ 
-            std::set<PairT, comparator> unvisited(theComparator);
+                /* Current node 1-index */
+                const size_t c_node = unvisited.begin()->first;
 
-            /**
-             * Tracking nodes which have been visited and whose shortest paths
-             * are known. This optimization is not necessary.
-             */
-            std::vector<bool> visited(m_matrix.NodeCount(), false);
-            
-            unvisited.insert(std::make_pair(m_start, 0));
+                /* Known & firm min distance to the current node */
+                const Weight c_dist = unvisited.begin()->second;
 
-            while (!unvisited.empty()) 
-            {
-                /* Node number 1-idx */
-                const size_t &n_node = unvisited.begin()->first;
+                unvisited.erase(unvisited.begin());
 
-                /* Current node distance from m_start */
-                const Weight &n_dist = unvisited.begin()->second;
+                std::map<size_t, Weight> neighbors;
+                m_matrix.GetNeighbors(c_node /* 1-idx */, neighbors);
 
-                if (visited.at(n_node - 1))
-                    std::cerr << "Error: already visited " << n_node << std::endl;
+                for (auto &neighbor : neighbors) { 
+                    const size_t &n_node = neighbor.first;
 
-                /* The unvisited queue has been mismanaged if this fails */
-                assert(false == visited.at(n_node - 1 /* 0-idx */));
+                    /* distance to the neighbor node by going through C */
+                    const Weight n_distThroughC = c_dist + neighbor.second;
 
-                std::vector<PairT> neighbors;
-                m_matrix.GetNeighbors(n_node, neighbors); 
+                    if (n_distThroughC < m_cost[n_node - 1 /* 0-idx */]) {
+                        m_cost[n_node - 1 /* 0-idx */] = neighbor.second;
 
-                for (auto neighbor : neighbors)
-                {
-                    const size_t &c_node = neighbor.first;
+                        m_edges[n_node - 1 /* 0-idx */] = c_node;
 
-                    Weight c_distThroughN = n_dist + neighbor.second;
-
-                    /* Optimization: skip nodes we've already firmly calculated */
-                    if (visited.at(c_node - 1))
-                        continue;
-
-                    if (c_distThroughN < m_distances[c_node - 1]) {
-
-                        Weight oldWeight = m_distances[c_node - 1 /* 0-idx */];
-
-                        m_distances[c_node - 1] = c_distThroughN;
-                        m_previous[c_node - 1] = n_node;
-
-                        /** 
-                         * Update the distance stored in the queue.
-                         */
-                        size_t removed = unvisited.erase(std::make_pair(c_node, oldWeight));
-
-                        /* If more than one was removed, the unvisited queue was mismanaged. */
-                        assert(removed < 2);
-
-                        unvisited.insert(std::make_pair(c_node, c_distThroughN));
+                        /* Have to update unvisited queue with new info */
+                        unvisited[n_node] = neighbor.second; 
                     }
 
                 }
 
-                unvisited.erase(unvisited.begin());
-
-                visited.at(n_node - 1) = true;
             }
 
             return 0;
         }
 
-
-
         void Print() const {
-            size_t i = 0;
+            Weight weight = 0;
 
-            for (; i < m_matrix.NodeCount(); ++i) {
-                if (i == m_start - 1)
+            /* All nodes where m_edges is not ::max() */
+            for (size_t i = 0; i < m_matrix.NodeCount(); ++i) {
+                if (m_edges[i] == std::numeric_limits<Weight>::max())
                     continue;
 
-                if (m_distances[i] == std::numeric_limits<Weight>::max())
-                    std::cout << "-1 ";
-                else
-                    std::cout << m_distances[i] << " ";
+                weight += m_cost[i];
             }
 
-            std::cout << std::endl;
+            std::cout << weight << std::endl;
         }
 
 
@@ -390,17 +316,17 @@ class DijkstraGraph {
 
         const MatrixT &m_matrix;
 
-        /* 0-indexed list of distances from the start node */
-        Weight *m_distances;
+        /* 0-indexed list of cheapest cost to connect to node i */ 
+        Weight *m_cost;
 
-        /* 0-indexed list of prior nodes on the optimal path from start */
-        size_t *m_previous;
+        /* 0-indexed list of target nodes from i across an edge providing the optimal m_cost */ 
+        size_t *m_edges;
 };
 
 
 int handle_test_case(size_t test_num) {
-    size_t nodes = 0; // constrained: 2 < N < 3000
-    size_t edges = 0; // 1 <= M <= (N*(N-1))/2
+    size_t nodes = 0; /* constrained: 2 < N < 3000 */
+    size_t edges = 0; /* 1 <= M <= (N*(N-1))/2 */
 
     std::cin >> nodes;
     std::cin >> edges;
@@ -418,7 +344,7 @@ int handle_test_case(size_t test_num) {
 
         std::cin >> A;
         std::cin >> B;
-        std::cin >> weight;
+        std::cin >> weight; /* 0 <= weight <= 10^5 */
 
         //std::cerr << "SetEdge " << A << " " << B << " " << weight << std::endl;
 
@@ -448,14 +374,8 @@ int handle_test_case(size_t test_num) {
 
 
 int main() {
-    size_t num_test_cases = 0; // constrained: 1 < T < 10
-
-    std::cin >> num_test_cases;
-
-    for (size_t i = 0; i < num_test_cases; ++i) {
-        if (handle_test_case(i))
-            return EXIT_FAILURE;
-    }
+    if (handle_test_case(1))
+        return EXIT_FAILURE;
 
     return EXIT_SUCCESS;
 }
