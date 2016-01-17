@@ -8,7 +8,8 @@ SUBDIRS = \
   maximizing-xor \
   time-conversion \
   plus-minus \
-  sherlock-and-array 
+  sherlock-and-array \
+  primsmstsub
  
 AM_CXXFLAGS = 
 AM_CFLAGS = 

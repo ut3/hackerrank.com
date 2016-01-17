@@ -25,13 +25,11 @@
 #include <stdint.h>
 #include <assert.h>
 
-#include <vector>
+#include <list>
 #include <limits>
 #include <iostream>
-#include <utility>
-#include <queue>
 #include <set>
-#include <map>
+#include <vector>
 
 /**
  * The adjacency matrix is space-optimized for bidirectional graphs.
@@ -64,8 +62,16 @@ class AdjacencyMatrix {
             m_nodes(nodes), /* Actual number of nodes */
             m_edges(edges), /* Actual number f edges */
             m_matrix(NULL) {
-                /* Mathematical max number of edges */
-                assert(edges <= nodes * (nodes + 1) / 2 );
+                /** 
+                 * Mathematical max number of edges.  
+                 * Graph input (edges and nodes) not sane if this fails.
+                 */
+                if (edges > nodes * (nodes + 1) / 2) {
+                    std::cerr << "Graph input not sane, mismatch between "
+                              << "edge (" << edges <<") and node (" 
+                              << nodes << ") counts." << std::endl;
+                    exit(EXIT_FAILURE);
+                }
             }
 
         ~AdjacencyMatrix() {
@@ -142,13 +148,19 @@ class AdjacencyMatrix {
 
 
         /* "node" param is 1-indexed */
-        void GetNeighbors(const size_t node, std::map<size_t, Weight> &neighbors) const {
+        template <typename T>
+        void GetNeighbors(const size_t node, T &neighbors) const {
+
+            if (node > m_nodes) {
+                std::cerr << "Node " << node << " out of bounds, max is " << m_nodes << std::endl;
+                return;
+            }
 
             /* When i is less than the search node, use i as the row index */
             for (size_t i = 0; i < node; ++i) {
                 Weight weight = m_matrix[node - 1 /* 0-indexed */][i];
                 if (weight != std::numeric_limits<Weight>::max()) {
-                    neighbors.insert(std::make_pair(i + 1 /* 1-indexed */, weight));
+                    neighbors.insert(neighbors.end(), std::make_pair(i + 1 /* 1-indexed */, weight));
                 }
             }
 
@@ -156,10 +168,9 @@ class AdjacencyMatrix {
             for (size_t i = node; i < m_nodes; ++i) {
                 Weight weight = m_matrix[i][node - 1 /* 0-indexed */];
                 if (weight != std::numeric_limits<Weight>::max()) {
-                    neighbors.insert(std::make_pair(i + 1 /* 1-indexed */, weight));
+                    neighbors.insert(neighbors.end(), std::make_pair(i + 1 /* 1-indexed */, weight));
                 }
             }
-
         }
 
         void Print() {
@@ -196,22 +207,30 @@ class DijkstraGraph {
         DijkstraGraph(const size_t start, const MatrixT &matrix) :
             m_start(start), 
             m_matrix(matrix), 
-            m_cost(NULL) { 
-                assert( start - 1 >= 0 ); 
-                assert( start <= m_matrix.NodeCount() );
+            m_distances(NULL) { 
+
+                /**
+                 * Bounds checking on the start node.
+                 * Input start node is not sane if this fails.
+                 */
+                if (start > m_matrix.NodeCount()) { 
+                    std::cerr << "Start node " << start 
+                              << " exceeds maximum node count " 
+                              << m_matrix.NodeCount() << std::endl;
+                    exit(EXIT_FAILURE);
+                }
             }
 
         ~DijkstraGraph() {
-            free(m_cost);
-            free(m_edges);
-            m_cost = NULL;
-            m_edges = NULL;
+            free(m_distances);
+            free(m_previous);
+            m_distances = NULL;
+            m_previous = NULL;
         }
 
         int Setup() {
-            if (m_cost)
+            if (m_distances)
                 return -1;
-
 
             /* 
              * 1. Allocate space for the 0-indexed list of weights from start
@@ -219,8 +238,8 @@ class DijkstraGraph {
 
             const size_t alloc_size = sizeof(Weight) * m_matrix.NodeCount();
 
-            m_cost = (Weight *) malloc(alloc_size);
-            if (!m_cost) {
+            m_distances = (Weight *) malloc(alloc_size);
+            if (!m_distances) {
                 std::cerr << "-ENOMEM" << std::endl;
                 return -1;
             }
@@ -232,8 +251,8 @@ class DijkstraGraph {
              *    the optimal path from start 
              */ 
 
-            m_edges = (size_t *) malloc(sizeof(size_t) * m_matrix.NodeCount());
-            if (!m_edges) {
+            m_previous = (size_t *) malloc(sizeof(size_t) * m_matrix.NodeCount());
+            if (!m_previous) {
                 std::cerr << "-ENOMEM" << std::endl;
                 return -1;
             }
@@ -241,69 +260,100 @@ class DijkstraGraph {
             /* 3. Initialize */
 
             for (size_t i = 0; i < m_matrix.NodeCount(); ++i) {
-                m_cost[i] = std::numeric_limits<Weight>::max();
-                m_edges[i]  = std::numeric_limits<size_t>::max(); 
+                m_distances[i] = std::numeric_limits<Weight>::max();
+                m_previous[i]  = std::numeric_limits<size_t>::max(); 
             }
 
             /* Distance to self from self is 0 */
-            m_cost[m_start - 1] = 0;
+            m_distances[m_start - 1] = 0;
 
             /* Previous node from start to start is start, but with indexing issues */
-            m_edges[m_start - 1] = m_start; 
+            m_previous[m_start - 1] = m_start; 
 
             return 0;
         }
 
+
         int Compute() {
-            /* map from <node number 1-idx> to Weight */
-            std::map<size_t, Weight> unvisited;
+            /**
+             * Mapping 1-idx node number to node's Weight 
+             */ 
+            typedef std::pair<size_t, Weight> PairT;
 
-            unvisited.insert(std::make_pair(m_start /* 1-idx */, 0));
+            /** 
+             * A comparison functor which gives precedence to the second
+             * entry of PairT, the Weight. Allows the "unvisited" set to
+             * sort based on Weigh.
+             */ 
+            struct comparator{
+                bool operator() (const PairT &lhs, const PairT &rhs) {
+                    if (lhs.second == rhs.second)
+                        return lhs.first < rhs.first;
 
-            while (!unvisited.empty()) {
+                    return lhs.second <= rhs.second;
+                }
+            } theComparator;
 
-                /* Current node 1-index */
-                const size_t c_node = unvisited.begin()->first;
+            /** 
+             * Nodes which must be traversed. "theComparator" causes
+             * this to be sorted by elements' Weight, returning
+             * the lowest weight element for .begin()
+             */ 
+            std::set<PairT, comparator> unvisited(theComparator);
 
-                /* Known & firm min distance to the current node */
-                const Weight c_dist = unvisited.begin()->second;
+            unvisited.insert(std::make_pair(m_start, 0));
 
-                unvisited.erase(unvisited.begin());
+            while (!unvisited.empty()) 
+            {
+                /* Node number 1-idx */
+                const size_t &n_node = unvisited.begin()->first;
 
-                std::map<size_t, Weight> neighbors;
-                m_matrix.GetNeighbors(c_node /* 1-idx */, neighbors);
+                /* Current node distance from m_start */
+                const Weight &n_dist = unvisited.begin()->second;
 
-                for (auto &neighbor : neighbors) { 
-                    const size_t &n_node = neighbor.first;
+                std::vector<PairT> neighbors;
+                m_matrix.GetNeighbors(n_node, neighbors); 
 
-                    /* distance to the neighbor node by going through C */
-                    const Weight n_distThroughC = c_dist + neighbor.second;
+                for (auto neighbor : neighbors)
+                {
+                    const size_t &c_node = neighbor.first;
 
-                    if (n_distThroughC < m_cost[n_node - 1 /* 0-idx */]) {
-                        m_cost[n_node - 1 /* 0-idx */] = neighbor.second;
+                    Weight c_distThroughN = n_dist + neighbor.second;
 
-                        m_edges[n_node - 1 /* 0-idx */] = c_node;
+                    if (c_distThroughN < m_distances[c_node - 1]) {
 
-                        /* Have to update unvisited queue with new info */
-                        unvisited[n_node] = neighbor.second; 
+                        Weight oldWeight = m_distances[c_node - 1 /* 0-idx */];
+
+                        m_distances[c_node - 1] = c_distThroughN;
+                        m_previous[c_node - 1] = n_node;
+
+                        /** 
+                         * Update the distance stored in the queue.
+                         */
+                        size_t removed = unvisited.erase(std::make_pair(c_node, oldWeight));
+
+                        /* If more than one was removed, the unvisited queue was mismanaged. */
+                        assert(removed < 2);
+
+                        unvisited.insert(std::make_pair(c_node, c_distThroughN));
                     }
 
                 }
 
+                unvisited.erase(unvisited.begin());
             }
 
             return 0;
         }
 
+
+
         void Print() const {
             Weight weight = 0;
 
-            /* All nodes where m_edges is not ::max() */
             for (size_t i = 0; i < m_matrix.NodeCount(); ++i) {
-                if (m_edges[i] == std::numeric_limits<Weight>::max())
-                    continue;
-
-                weight += m_cost[i];
+                if (m_distances[i] != std::numeric_limits<Weight>::max())
+                    weight += m_distances[i];
             }
 
             std::cout << weight << std::endl;
@@ -316,17 +366,17 @@ class DijkstraGraph {
 
         const MatrixT &m_matrix;
 
-        /* 0-indexed list of cheapest cost to connect to node i */ 
-        Weight *m_cost;
+        /* 0-indexed list of distances from the start node */
+        Weight *m_distances;
 
-        /* 0-indexed list of target nodes from i across an edge providing the optimal m_cost */ 
-        size_t *m_edges;
+        /* 0-indexed list of prior nodes on the optimal path from start */
+        size_t *m_previous;
 };
 
 
 int handle_test_case(size_t test_num) {
-    size_t nodes = 0; /* constrained: 2 < N < 3000 */
-    size_t edges = 0; /* 1 <= M <= (N*(N-1))/2 */
+    size_t nodes = 0; // constrained: 2 < N < 3000
+    size_t edges = 0; // 1 <= M <= (N*(N-1))/2
 
     std::cin >> nodes;
     std::cin >> edges;
@@ -344,7 +394,7 @@ int handle_test_case(size_t test_num) {
 
         std::cin >> A;
         std::cin >> B;
-        std::cin >> weight; /* 0 <= weight <= 10^5 */
+        std::cin >> weight;
 
         //std::cerr << "SetEdge " << A << " " << B << " " << weight << std::endl;
 
