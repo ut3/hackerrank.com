@@ -25,7 +25,6 @@
 #include <stdint.h>
 #include <assert.h>
 
-#include <map>
 #include <list>
 #include <limits>
 #include <iostream>
