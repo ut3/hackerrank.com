@@ -103,7 +103,7 @@ class AdjacencyMatrix {
                 m_matrix[i] = offset;
 
                 /* the highest column index in the i-th row is i */
-                for (size_t j = 0; j <= i; ++j) {
+                for (size_t j = 0; j < i; ++j) {
                     m_matrix[i][j] = std::numeric_limits<Weight>::max();
                 }
 
@@ -172,6 +172,25 @@ class AdjacencyMatrix {
                 if (weight != std::numeric_limits<Weight>::max()) {
                     neighbors.insert(neighbors.end(), std::make_pair(i + 1 /* 1-indexed */, weight));
                 }
+            }
+        }
+
+        /* Get all nodes in the graph */
+        template <typename T>
+        void GetNodes(T &nodes) const {
+            for (size_t i = 0; i < m_nodes; ++i) {
+                for (size_t j = 0; j <= i; ++j) {
+                    const Weight &weight = m_matrix[i][j];
+
+                    /* If any edge exists for the node, the node is on the graph.
+                     * Disconnected nodes are impossible because of input 
+                     * constraints. */
+                    if (weight != std::numeric_limits<Weight>::max()) {
+                        nodes.insert(nodes.end(), i + 1);
+                        goto outer;
+                    }
+                }
+outer:;
             }
         }
 
@@ -278,7 +297,9 @@ class DijkstraGraph {
 
         int Compute() {
             /**
-             * Mapping 1-idx node number to node's Weight 
+             * Mapping 1-idx node number to node's Weight.
+             * The second element (Weight) mirrors m_distance, but is maintained here
+             * to provide an efficient priority queue. 
              */ 
             typedef std::pair<size_t, Weight> PairT;
 
@@ -302,22 +323,17 @@ class DijkstraGraph {
              * the lowest weight element for .begin()
              */ 
             std::set<PairT, comparator> unvisited(theComparator);
-
-            /**
-             * Tracking nodes which have been visited and whose shortest paths
-             * are known. This optimization is not necessary.
-             */
-            std::vector<bool> visited(m_matrix.NodeCount(), false);
-            
             unvisited.insert(std::make_pair(m_start, 0));
 
+            std::vector<bool> visited(m_matrix.NodeCount(), false);
+        
             while (!unvisited.empty()) 
             {
                 /* Node number 1-idx */
-                const size_t &n_node = unvisited.begin()->first;
+                const size_t n_node = unvisited.begin()->first;
 
                 /* Current node distance from m_start */
-                const Weight &n_dist = unvisited.begin()->second;
+				assert(unvisited.begin()->second == m_distances[n_node - 1]);
 
                 if (visited.at(n_node - 1))
                     std::cerr << "Error: already visited " << n_node << std::endl;
@@ -325,42 +341,35 @@ class DijkstraGraph {
                 /* The unvisited queue has been mismanaged if this fails */
                 assert(false == visited.at(n_node - 1 /* 0-idx */));
 
+                unvisited.erase(unvisited.begin());
+                visited.at(n_node - 1) = true;
+
                 std::vector<PairT> neighbors;
                 m_matrix.GetNeighbors(n_node, neighbors); 
 
                 for (auto neighbor : neighbors)
                 {
+                    /* Neighbor node from n_node */
                     const size_t &c_node = neighbor.first;
 
-                    Weight c_distThroughN = n_dist + neighbor.second;
+                    const Weight c_distThroughN = m_distances[n_node - 1] + neighbor.second;
 
-                    /* Optimization: skip nodes we've already firmly calculated */
                     if (visited.at(c_node - 1))
                         continue;
 
                     if (c_distThroughN < m_distances[c_node - 1]) {
 
-                        Weight oldWeight = m_distances[c_node - 1 /* 0-idx */];
+						size_t removed = unvisited.erase(std::make_pair(c_node, m_distances[c_node - 1]));
+						assert(removed < 2);
 
                         m_distances[c_node - 1] = c_distThroughN;
                         m_previous[c_node - 1] = n_node;
-
-                        /** 
-                         * Update the distance stored in the queue.
-                         */
-                        size_t removed = unvisited.erase(std::make_pair(c_node, oldWeight));
-
-                        /* If more than one was removed, the unvisited queue was mismanaged. */
-                        assert(removed < 2);
 
                         unvisited.insert(std::make_pair(c_node, c_distThroughN));
                     }
 
                 }
 
-                unvisited.erase(unvisited.begin());
-
-                visited.at(n_node - 1) = true;
             }
 
             return 0;

@@ -3,7 +3,7 @@
  * rick.ramstetter[at]gmail.[tld]
  *
  * Problem statement:
- *  https://www.hackerrank.com/challenges/primshortreach
+ *  https://www.hackerrank.com/challenges/primsmstsub
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -178,8 +178,6 @@ class AdjacencyMatrix {
         /* Get all nodes in the graph */
         template <typename T>
         void GetNodes(T &nodes) const {
-
-            /* When i is less than the search node, use i as the row index */
             for (size_t i = 0; i < m_nodes; ++i) {
                 for (size_t j = 0; j <= i; ++j) {
                     const Weight &weight = m_matrix[i][j];
@@ -299,7 +297,9 @@ class Prim {
 
         int Compute() {
             /**
-             * Mapping 1-idx node number to node's Weight 
+             * Mapping 1-idx node number to node's Weight.
+             * The second element (Weight) mirrors m_distance, but is maintained here
+             * to provide an efficient priority queue. 
              */ 
             typedef std::pair<size_t, Weight> PairT;
 
@@ -327,24 +327,19 @@ class Prim {
 
             std::vector<bool> visited(m_matrix.NodeCount(), false);
 
-            m_distances[m_start - 1] = 0;
-            {
-                std::set<size_t> allNodes;
-                m_matrix.GetNodes(allNodes);
-
-                for (auto node : allNodes)  {
-                    std::cerr << "Init node: " << node << std::endl;
-                    unvisited.insert(std::make_pair(node, std::numeric_limits<Weight>::max()));
-                }
-            }
-
             while (!unvisited.empty()) 
             {
-                /* Current node  */
-                const size_t &n_node = unvisited.begin()->first;
-                std::cerr << "At node:" << n_node << std::endl 
-                    << "  m_distances[]:" << m_distances[n_node - 1] << std::endl
-                    << "  .second:" << unvisited.begin()->second << std::endl;
+                /* Node number 1-idx */
+                const size_t n_node = unvisited.begin()->first;
+
+                /* Current node distance from m_start */
+				assert(unvisited.begin()->second == m_distances[n_node - 1]);
+
+                if (visited.at(n_node - 1))
+                    std::cerr << "Error: already visited " << n_node << std::endl;
+
+                /* The unvisited queue has been mismanaged if this fails */
+                assert(false == visited.at(n_node - 1 /* 0-idx */));
 
                 unvisited.erase(unvisited.begin());
                 visited.at(n_node - 1) = true;
@@ -357,24 +352,15 @@ class Prim {
                     /* Neighbor node from n_node */
                     const size_t &c_node = neighbor.first;
 
-                    /* Distance to c_node from n_node (testing the edge weight) */
                     const Weight &c_weight = neighbor.second;
 
                     if (visited.at(c_node - 1))
                         continue;
 
-                    std::cerr << "   Neighbor: " << c_node << std::endl;
-
                     if (c_weight < m_distances[c_node - 1]) {
 
-                        std::cerr << "   Updating MST, new distance to node "<< c_node << " is " << c_weight << std::endl;
-                        std::cerr << "   Old distance was " << m_distances[c_node - 1] << std::endl;
-                        /** 
-                         * Update the distance stored in the queue.
-                         */
                         size_t removed = unvisited.erase(std::make_pair(c_node, m_distances[c_node - 1]));
                         assert(removed < 2);
-                        std::cerr << "   Removed " << removed << " node from queue" << std::endl;
 
                         m_distances[c_node - 1] = c_weight;
                         m_previous[c_node - 1] = n_node;
