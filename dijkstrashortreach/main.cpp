@@ -106,6 +106,8 @@ class AdjacencyMatrix {
                 for (size_t j = 0; j <= i; ++j) {
                     m_matrix[i][j] = std::numeric_limits<Weight>::max();
                 }
+
+                m_matrix[i][i] = 0;
             }
 
             return 0;

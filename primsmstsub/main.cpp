@@ -3,7 +3,7 @@
  * rick.ramstetter[at]gmail.[tld]
  *
  * Problem statement:
- *  https://www.hackerrank.com/challenges/dijkstrashortreach
+ *  https://www.hackerrank.com/challenges/primshortreach
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -103,9 +103,11 @@ class AdjacencyMatrix {
                 m_matrix[i] = offset;
 
                 /* the highest column index in the i-th row is i */
-                for (size_t j = 0; j <= i; ++j) {
+                for (size_t j = 0; j < i; ++j) {
                     m_matrix[i][j] = std::numeric_limits<Weight>::max();
                 }
+
+                m_matrix[i][i] = 0;
             }
 
             return 0;
@@ -173,6 +175,27 @@ class AdjacencyMatrix {
             }
         }
 
+        /* Get all nodes in the graph */
+        template <typename T>
+        void GetNodes(T &nodes) const {
+
+            /* When i is less than the search node, use i as the row index */
+            for (size_t i = 0; i < m_nodes; ++i) {
+                for (size_t j = 0; j <= i; ++j) {
+                    const Weight &weight = m_matrix[i][j];
+
+                    /* If any edge exists for the node, the node is on the graph.
+                     * Disconnected nodes are impossible because of input 
+                     * constraints. */
+                    if (weight != std::numeric_limits<Weight>::max()) {
+                        nodes.insert(nodes.end(), i + 1);
+                        goto outer;
+                    }
+                }
+outer:;
+            }
+        }
+
         void Print() {
             std::cerr << "Matrix dump follows: " << std::endl;
             for (size_t x = 1; x <= m_nodes; ++x) {
@@ -199,12 +222,12 @@ class AdjacencyMatrix {
 
 
 template <typename MatrixT>
-class DijkstraGraph {
+class Prim {
     public:
         typedef typename MatrixT::Weight Weight;
 
         /* start is 1-indexed, internal data structures are 0-indexed */
-        DijkstraGraph(const size_t start, const MatrixT &matrix) :
+        Prim(const size_t start, const MatrixT &matrix) :
             m_start(start), 
             m_matrix(matrix), 
             m_distances(NULL) { 
@@ -221,7 +244,7 @@ class DijkstraGraph {
                 }
             }
 
-        ~DijkstraGraph() {
+        ~Prim() {
             free(m_distances);
             free(m_previous);
             m_distances = NULL;
@@ -300,47 +323,65 @@ class DijkstraGraph {
              * the lowest weight element for .begin()
              */ 
             std::set<PairT, comparator> unvisited(theComparator);
-
             unvisited.insert(std::make_pair(m_start, 0));
+
+            m_distances[m_start - 1] = 0;
+
+            {
+                std::set<size_t> allNodes;
+                m_matrix.GetNodes(allNodes);
+
+                for (auto node : allNodes)  {
+                    std::cerr << "Init node: " << node << std::endl;
+                    unvisited.insert(std::make_pair(node, std::numeric_limits<Weight>::max()));
+                }
+            }
 
             while (!unvisited.empty()) 
             {
-                /* Node number 1-idx */
+                /* Current node  */
                 const size_t &n_node = unvisited.begin()->first;
+                std::cerr << "At node:" << n_node << std::endl 
+                    << "  m_distances[]:" << m_distances[n_node - 1] << std::endl
+                    << "  .second:" << unvisited.begin()->second << std::endl;
 
-                /* Current node distance from m_start */
-                const Weight &n_dist = unvisited.begin()->second;
+                unvisited.erase(unvisited.begin());
 
                 std::vector<PairT> neighbors;
                 m_matrix.GetNeighbors(n_node, neighbors); 
-
+                
                 for (auto neighbor : neighbors)
                 {
+                    /* Neighbor node from n_node */
                     const size_t &c_node = neighbor.first;
 
-                    Weight c_distThroughN = n_dist + neighbor.second;
+                    /* Distance to c_node from n_node (testing the edge weight) */
+                    const Weight &c_weight = neighbor.second;
 
-                    if (c_distThroughN < m_distances[c_node - 1]) {
+                    if (unvisited.find(std::make_pair(c_node, m_distances[c_node - 1])) == unvisited.end())
+                        continue;
 
-                        Weight oldWeight = m_distances[c_node - 1 /* 0-idx */];
+                    std::cerr << "   Neighbor: " << c_node << std::endl;
 
-                        m_distances[c_node - 1] = c_distThroughN;
-                        m_previous[c_node - 1] = n_node;
+                    if (c_weight < m_distances[c_node - 1]) {
 
+                        std::cerr << "   Updating MST, new distance to node "<< c_node << " is " << c_weight << std::endl;
+                        std::cerr << "   Old distance was " << m_distances[c_node - 1] << std::endl;
                         /** 
                          * Update the distance stored in the queue.
                          */
-                        size_t removed = unvisited.erase(std::make_pair(c_node, oldWeight));
-
-                        /* If more than one was removed, the unvisited queue was mismanaged. */
+                        size_t removed = unvisited.erase(std::make_pair(c_node, m_distances[c_node - 1]));
                         assert(removed < 2);
+                        std::cerr << "   Removed " << removed << " node from queue" << std::endl;
 
-                        unvisited.insert(std::make_pair(c_node, c_distThroughN));
+                        m_distances[c_node - 1] = c_weight;
+                        m_previous[c_node - 1] = n_node;
+
+                        unvisited.insert(std::make_pair(c_node, c_weight));
                     }
 
                 }
 
-                unvisited.erase(unvisited.begin());
             }
 
             return 0;
@@ -381,7 +422,7 @@ int handle_test_case(size_t test_num) {
     std::cin >> nodes;
     std::cin >> edges;
 
-    typedef AdjacencyMatrix<uint32_t> MatrixT;
+    typedef AdjacencyMatrix<uint64_t> MatrixT;
     MatrixT matrix(nodes, edges);
     if (matrix.Setup()) {
         std::cerr << "Matrix setup failed; aborting test case " << test_num << std::endl;
@@ -406,18 +447,18 @@ int handle_test_case(size_t test_num) {
     size_t start;
     std::cin >> start;
 
-    DijkstraGraph<MatrixT> dijkstra(start, matrix);
-    if (dijkstra.Setup()) {
-        std::cerr << "Dijkstra setup() failed; aborting test case " << test_num << std::endl;
+    Prim<MatrixT> prim(start, matrix);
+    if (prim.Setup()) {
+        std::cerr << "Prim setup() failed; aborting test case " << test_num << std::endl;
         return -1;
     }
 
-    if (dijkstra.Compute()) {
-        std::cerr << "Dijkstra compute() failed; aborting test case " << test_num << std::endl;
+    if (prim.Compute()) {
+        std::cerr << "Prim compute() failed; aborting test case " << test_num << std::endl;
         return -1;
     }
 
-    dijkstra.Print();
+    prim.Print();
 
     return 0;
 }
