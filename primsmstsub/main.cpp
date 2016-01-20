@@ -325,8 +325,9 @@ class Prim {
             std::set<PairT, comparator> unvisited(theComparator);
             unvisited.insert(std::make_pair(m_start, 0));
 
-            m_distances[m_start - 1] = 0;
+            std::vector<bool> visited(m_matrix.NodeCount(), false);
 
+            m_distances[m_start - 1] = 0;
             {
                 std::set<size_t> allNodes;
                 m_matrix.GetNodes(allNodes);
@@ -346,6 +347,7 @@ class Prim {
                     << "  .second:" << unvisited.begin()->second << std::endl;
 
                 unvisited.erase(unvisited.begin());
+                visited.at(n_node - 1) = true;
 
                 std::vector<PairT> neighbors;
                 m_matrix.GetNeighbors(n_node, neighbors); 
@@ -358,7 +360,7 @@ class Prim {
                     /* Distance to c_node from n_node (testing the edge weight) */
                     const Weight &c_weight = neighbor.second;
 
-                    if (unvisited.find(std::make_pair(c_node, m_distances[c_node - 1])) == unvisited.end())
+                    if (visited.at(c_node - 1))
                         continue;
 
                     std::cerr << "   Neighbor: " << c_node << std::endl;
