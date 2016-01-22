@@ -9,7 +9,8 @@ SUBDIRS = \
   time-conversion \
   plus-minus \
   sherlock-and-array \
-  primsmstsub
+  primsmstsub \
+  building-a-list
  
 AM_CXXFLAGS = 
 AM_CFLAGS = 
