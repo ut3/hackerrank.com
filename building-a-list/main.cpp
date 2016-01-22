@@ -21,7 +21,6 @@
 
 #include <assert.h>
 #include <iostream>
-#include <sstream>
 #include <algorithm>
 
 void print(const std::string &prefix, /* Output prefix for the current recursion */ 
@@ -49,6 +48,7 @@ int handle_test_case(size_t test_num) {
     std::sort(input.begin(), input.end());
 
     print("", input, input.begin());
+    return 0;
 }
 
 int main() {
