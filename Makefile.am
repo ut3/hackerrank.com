@@ -10,7 +10,8 @@ SUBDIRS = \
   plus-minus \
   sherlock-and-array \
   primsmstsub \
-  building-a-list
+  building-a-list \
+  cpp_variadics
  
 AM_CXXFLAGS = 
 AM_CFLAGS = 
