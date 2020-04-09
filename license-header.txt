@@ -1,8 +1,6 @@
 /*
- * Copyright 2015 J. Rick Ramstetter
- * rick.ramstetter[at]gmail.[tld]
- * 
- * Problem statement:
+ * Copyright 2020 J. Rick Ramstetter
+ * rick.ramstetter@gmail.com
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

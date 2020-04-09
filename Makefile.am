@@ -11,7 +11,8 @@ SUBDIRS = \
   sherlock-and-array \
   primsmstsub \
   building-a-list \
-  cpp_variadics
+  cpp_variadics \
+  magic_spells
  
 AM_CXXFLAGS = 
 AM_CFLAGS = 
