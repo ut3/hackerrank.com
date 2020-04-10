@@ -12,8 +12,9 @@ SUBDIRS = \
   primsmstsub \
   building-a-list \
   cpp_variadics \
-  magic_spells
+  magic_spells \
+  ctci-array-left-rotation
  
-AM_CXXFLAGS = 
+AM_CXXFLAGS = -std=c++14
 AM_CFLAGS = 
 AM_LDFLAGS = 

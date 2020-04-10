@@ -2996,7 +2996,7 @@ fi
 ac_config_headers="$ac_config_headers config.h"
 
 
-CXXFLAGS="$CXXFLAGS -std=c++11"
+CXXFLAGS="$CXXFLAGS -std=c++14"
 # Checks for programs.
 ac_ext=cpp
 ac_cpp='$CXXCPP $CPPFLAGS'
@@ -4954,7 +4954,7 @@ fi
 done
 
 
-ac_config_files="$ac_config_files Makefile building-a-list/Makefile cpp_variadics/Makefile diagonal-difference/Makefile dijkstrashortreach/Makefile maximizing-xor/Makefile plus-minus/Makefile primsmstsub/Makefile quicksort1/Makefile sherlock-and-array/Makefile swap-nodes-algo/using-tree-data-structure/Makefile swap-nodes-algo/using-vector-tree/Makefile the-grid-search/Makefile time-conversion/Makefile"
+ac_config_files="$ac_config_files Makefile building-a-list/Makefile cpp_variadics/Makefile ctci-array-left-rotation/Makefile diagonal-difference/Makefile dijkstrashortreach/Makefile magic_spells/Makefile maximizing-xor/Makefile plus-minus/Makefile primsmstsub/Makefile quicksort1/Makefile sherlock-and-array/Makefile swap-nodes-algo/using-tree-data-structure/Makefile swap-nodes-algo/using-vector-tree/Makefile the-grid-search/Makefile time-conversion/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -5690,8 +5690,10 @@ do
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "building-a-list/Makefile") CONFIG_FILES="$CONFIG_FILES building-a-list/Makefile" ;;
     "cpp_variadics/Makefile") CONFIG_FILES="$CONFIG_FILES cpp_variadics/Makefile" ;;
+    "ctci-array-left-rotation/Makefile") CONFIG_FILES="$CONFIG_FILES ctci-array-left-rotation/Makefile" ;;
     "diagonal-difference/Makefile") CONFIG_FILES="$CONFIG_FILES diagonal-difference/Makefile" ;;
     "dijkstrashortreach/Makefile") CONFIG_FILES="$CONFIG_FILES dijkstrashortreach/Makefile" ;;
+    "magic_spells/Makefile") CONFIG_FILES="$CONFIG_FILES magic_spells/Makefile" ;;
     "maximizing-xor/Makefile") CONFIG_FILES="$CONFIG_FILES maximizing-xor/Makefile" ;;
     "plus-minus/Makefile") CONFIG_FILES="$CONFIG_FILES plus-minus/Makefile" ;;
     "primsmstsub/Makefile") CONFIG_FILES="$CONFIG_FILES primsmstsub/Makefile" ;;

@@ -7,7 +7,7 @@ AM_INIT_AUTOMAKE
 
 AC_CONFIG_HEADERS([config.h])
 
-CXXFLAGS="$CXXFLAGS -std=c++11"
+CXXFLAGS="$CXXFLAGS -std=c++14"
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_CC
