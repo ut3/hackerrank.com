@@ -13,7 +13,8 @@ SUBDIRS = \
   building-a-list \
   cpp_variadics \
   magic_spells \
-  ctci-array-left-rotation
+  ctci-array-left-rotation \
+  minimum-swaps-2
  
 AM_CXXFLAGS = -std=c++14
 AM_CFLAGS = 

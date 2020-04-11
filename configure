@@ -4954,7 +4954,7 @@ fi
 done
 
 
-ac_config_files="$ac_config_files Makefile building-a-list/Makefile cpp_variadics/Makefile ctci-array-left-rotation/Makefile diagonal-difference/Makefile dijkstrashortreach/Makefile magic_spells/Makefile maximizing-xor/Makefile plus-minus/Makefile primsmstsub/Makefile quicksort1/Makefile sherlock-and-array/Makefile swap-nodes-algo/using-tree-data-structure/Makefile swap-nodes-algo/using-vector-tree/Makefile the-grid-search/Makefile time-conversion/Makefile"
+ac_config_files="$ac_config_files Makefile building-a-list/Makefile cpp_variadics/Makefile ctci-array-left-rotation/Makefile diagonal-difference/Makefile dijkstrashortreach/Makefile magic_spells/Makefile maximizing-xor/Makefile minimum-swaps-2/Makefile plus-minus/Makefile primsmstsub/Makefile quicksort1/Makefile sherlock-and-array/Makefile swap-nodes-algo/using-tree-data-structure/Makefile swap-nodes-algo/using-vector-tree/Makefile the-grid-search/Makefile time-conversion/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -5695,6 +5695,7 @@ do
     "dijkstrashortreach/Makefile") CONFIG_FILES="$CONFIG_FILES dijkstrashortreach/Makefile" ;;
     "magic_spells/Makefile") CONFIG_FILES="$CONFIG_FILES magic_spells/Makefile" ;;
     "maximizing-xor/Makefile") CONFIG_FILES="$CONFIG_FILES maximizing-xor/Makefile" ;;
+    "minimum-swaps-2/Makefile") CONFIG_FILES="$CONFIG_FILES minimum-swaps-2/Makefile" ;;
     "plus-minus/Makefile") CONFIG_FILES="$CONFIG_FILES plus-minus/Makefile" ;;
     "primsmstsub/Makefile") CONFIG_FILES="$CONFIG_FILES primsmstsub/Makefile" ;;
     "quicksort1/Makefile") CONFIG_FILES="$CONFIG_FILES quicksort1/Makefile" ;;
